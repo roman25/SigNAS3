@@ -14,7 +14,14 @@ public:
     parseResults();
 
     QStringList readFile(QString filePath);
+    void analyzeId(QStringList rawData, QString idOriginal);
     void analyzeRST(QString filePath, QString idOriginal);
+    void getChannels();
+
+    quint8 laneCount;
+
+    QStringList channels;
+    QStringList rawRST;
 
     generateReport report;
 
