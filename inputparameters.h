@@ -2,7 +2,7 @@
 #define INPUTPARAMETERS_H
 
 #include <QString>
-
+#include <QDebug>
 #include "parseresults.h"
 
 class inputParameters
@@ -10,16 +10,15 @@ class inputParameters
 public:
     inputParameters();
 
+    QString pathToReport;
     QString pathToRST;
     QString pathToCSV;
     QString idOriginal;
     QString srOriginal;
-    int nChips;
-    int nBlocks;
     int k;
     int maxBB;
 
-    parseResults parser;
+
 
 };
 

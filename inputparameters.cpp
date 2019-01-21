@@ -1,18 +1,16 @@
 #include "inputparameters.h"
-#include <QDebug>
 
 inputParameters::inputParameters()
 {
     // Band of required input paramerers
+    pathToReport  = "D:/Dropbox/SigNAS3/file_examples/script_29_12_2018.csv";
     pathToRST     = "D:/Dropbox/SigNAS3/file_examples/script_29_12_2018.rst";
-    pathToCSV     = "";
+    pathToCSV     = "D:/Dropbox/SigNAS3/file_examples/res_140119.csv";
     idOriginal    = "2C A4 64 32 AA 04 00 00";
-    srOriginal    = "";
-    nChips        = 3;
-    nBlocks       = 4;
-    k             = 10;
-    maxBB         = 98;
+    srOriginal    = "E0";
+    k             = 4;
+    maxBB         = 5;
 
-    parser.analyzeRST(pathToRST, idOriginal);
+    parseResults parser(pathToReport, pathToRST, pathToCSV, idOriginal, srOriginal, k, maxBB);
 
 }

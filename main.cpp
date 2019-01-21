@@ -1,6 +1,4 @@
 #include <QCoreApplication>
-#include <QDebug>
-#include "parseresults.h"
 #include "inputparameters.h"
 
 int main(int argc, char *argv[])

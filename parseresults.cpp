@@ -1,21 +1,23 @@
 #include "parseresults.h"
-#include <QDebug>
 
-parseResults::parseResults()
+parseResults::parseResults(QString pathToReport, QString pathToRST, QString pathToCSV, QString idOriginal, QString srOriginal, int k, int maxBB):
+repPath(pathToReport), rstPath(pathToRST), csvPath(pathToCSV), idOrig(idOriginal), srOrig (srOriginal), k(k), maxBB(maxBB)
 {
-    laneCount = 0;    
+    laneCount = 0;
+    //analyzeCSV();
+    analyzeRST();
 }
 
-void parseResults::analyzeRST(QString filePath, QString idOriginal)
+void parseResults::analyzeRST()
 {
     // Get input data in required format for processing
-    rawRST = readFile(filePath);
+    rawRST = readFile();
 
     // Get information about channels for prcessing
     getChannels();
 
-    // Store information about Lanes
-    QList <int> labelLane;
+    // Store information about Lanes as row number
+    QList <int> laneLineNumber;
     for (int i = 0; i < rawRST.size(); i++)
     {
         // Read row
@@ -23,104 +25,308 @@ void parseResults::analyzeRST(QString filePath, QString idOriginal)
 
         // Check the required row contains the template word
         if (line.contains("Lane"))
-            labelLane.push_back(i);
+            laneLineNumber.push_back(i);
     }
 
     // Verification of lanes
-    if (labelLane.size() == 0)
+    if (laneLineNumber.size() == 0)
     {
         qDebug() << "No Lane port";
         exit(EXIT_FAILURE);
     }
-
     else
     {
-        for (int i = 0; i < labelLane.size(); i++)
+        // Split input .rst data by lane count
+        for (int laneNum = 0; laneNum < laneLineNumber.size(); laneNum++)
         {
-            qDebug() << "Process Lane" << i;
 
             // Split by parts for every Lane
-            int lowBorder = labelLane[i]; // Low border for splitting
-            int upBorder = labelLane[i]; // Up border of splitting
-            if (labelLane.size() > 1)
-                upBorder = labelLane.value(i+1);
+            int lowBorder = laneLineNumber[laneNum]; // Low border for splitting
+            int upBorder = laneLineNumber[laneNum]; // Up border of splitting
+            if (laneLineNumber.size() > 1)
+                upBorder = laneLineNumber.value(laneNum+1);
+
+            results.clear();
+            chip.clear();
 
             // Get splitted data for processing
             QStringList dataForAnalysis = rawRST.mid(lowBorder, upBorder - lowBorder -1);
-            analyzeId(dataForAnalysis, idOriginal);
+            analyzeSr(dataForAnalysis);
+            analyzeId(laneNum, dataForAnalysis);
         }
     }
-
 }
 
-void parseResults::analyzeId(QStringList rawRST, QString idOriginal)
+void parseResults::analyzeSr(QStringList rawRST)
 {
     /*!
-        Makes analysis of input ID_original value in .rst file
+        Makes analysis of SR values
      */
 
-    // Define list that will be processed
-    QStringList processRows;
+    qDebug() << "Analysis of SR original in process...";
 
-    // Collect rows that contain ID data
-    foreach (QString row, rawRST)
+    // Storage for Erase/Program/Read Fail errors
+    QStringList otherErrors;
+
+    // Read raw RST data
+    foreach (QString line, rawRST)
     {
-        if (row.startsWith("Get Data (") )
-            processRows.push_back(row);
+        if (   (line.contains("Erase")||
+                line.contains("Read") ||
+                line.contains("Program"))
+            && (!(line.contains("Status") || (line.contains("Enable"))  ) ) )
+           generalError << line;
+
+        if (   (line.contains("Erase")||
+                line.contains("Read") ||
+                line.contains("Program"))
+            && (line.contains("Status") ) )
+            otherErrors << line;
     }
 
-    // Define storage for crystals and its ID
-    // It looks like as QMap <int crystall, QStringList IDs in .rst>
-    QMap <int, QStringList> data;
-    int counter = 0;
-
-    for (int i = 0; i < processRows.size(); i+=channels.size() )
+    // Analyze errors and count
+    foreach (QString line, otherErrors)
     {
-        // Make selection of all channels for current crystall
-        QStringList selection = processRows.mid(i, channels.size());
-
-        data[counter++] = selection;
-    }
-
-    // Analyze that collected data in step above contain input ID
-    for (int i = 0; i < data.size(); i++)
-    {
-        QStringList listValues = data[i];
-
-        foreach (QString row, listValues)
+        if (line.contains("Erase") )
         {
-            if ( !(row.contains(idOriginal)) )
+            // Split data
+            QStringList splitedStatus = line.split("Status ");
+            QStringList splitedCH = splitedStatus[1].split(",");
+
+            foreach (QString chInfo, splitedCH)
             {
-                qDebug() << "\t" << "There is problem with crystal" << i;
-                break;
+                // Get CH value
+                QString ch = chInfo.mid(0,3);
+                QStringList srList = chInfo.mid(3).split(" ");
+
+                // Define values of chips
+                if (srList.size() == 2)
+                    chip << 0 << 4;
+                else
+                    chip << 0 << 1 << 4 << 5;
+
+                for (int i = 0; i < srList.size(); i++)
+                {
+                    QString key = ch + "_" + "chip" +QString::number(chip[i]);
+
+                    // Check that key is not present in QMap
+                    if ( !(erase.count(key) > 0) )
+                        erase[key] = 0;
+
+                    // Collect count of erase fail errors
+                    int eraseBad = erase[key];
+                    if (!(srList[i].contains(srOrig)))
+                        erase[key] = ++eraseBad;
+                }
+            }
+        }
+        else if (line.contains("Read") )
+        {
+            QStringList splitedStatus = line.split("Status ");
+            QStringList splitedCH = splitedStatus[1].split(",");
+
+            foreach (QString chInfo, splitedCH)
+            {
+                QString ch = chInfo.mid(0,3);
+                QStringList srList = chInfo.mid(3).split(" ");
+
+                // Define values of chips
+                if (srList.size() == 2)
+                    chip << 0 << 4;
+                else
+                    chip << 0 << 1 << 4 << 5;
+
+                for (int i = 0; i < srList.size(); i++)
+                {
+                    QString key = ch + "_" + "chip" +QString::number( chip[i]);
+
+                    // Check that key is not present in QMap
+                    if ( !(read.count(key) > 0) )
+                        read[key] = 0;
+
+                    // Collect count of read fail errors
+                    int readBad = read[key];
+                    if (!(srList[i].contains(srOrig)))
+                        read[key] = ++readBad;
+                }
+            }
+        }
+
+        else if (line.contains("Program") )
+        {
+            QStringList splitedStatus = line.split("Status ");
+            QStringList splitedCH = splitedStatus[1].split(",");
+
+            foreach (QString chInfo, splitedCH)
+            {
+                QString ch = chInfo.mid(0,3);
+                QStringList srList = chInfo.mid(3).split(" ");
+
+                // Define values of chips
+                if (srList.size() == 2)
+                    chip << 0 << 4;
+                else
+                    chip << 0 << 1 << 4 << 5;
+
+                for (int i = 0; i < srList.size(); i++)
+                {
+                    QString key = ch + "_" + "chip" +QString::number( chip[i]);
+
+                    // Check that key is not present in QMap
+                    if ( !(program.count(key) > 0) )
+                        program[key] = 0;
+
+                    // Collect count of program fail errors
+                    int programBad = program[key];
+                    if (!(srList[i].contains(srOrig)))
+                        program[key] = ++programBad;
+                }
             }
         }
     }
 }
 
 
-QStringList parseResults::readFile(QString filePath)
+void parseResults::analyzeId(int lane, QStringList rawRST)
 {
     /*!
-        Converts input file into QStringList for processing
-    */
+        Makes analysis of input ID_original value in .rst file
+     */
 
-    // Will be returned
-    QStringList convertedData;
+    qDebug() << "Analysis of ID in process...";
 
-    // Read input file
-    QFile file(filePath);
+    // Define list that will be processed
+    QStringList processRows;
 
-    if(file.open(QIODevice::ReadOnly))
+    // Collect rows that contain ID data
+    countCrystal = 0;
+    foreach (QString row, rawRST)
     {
-          QTextStream stream(&file);
-
-          // Read a row from input
-          while(!stream.atEnd())
-               convertedData << stream.readLine();
+        if (row.startsWith("Get Data (") )
+        {
+            processRows.push_back(row);
+            if (row.contains(channels[0]) )
+                countCrystal++;
+        }
     }
 
-    return convertedData;
+    // Define values of chips
+    if (countCrystal == 2)
+        chip << 0 << 4;
+    else
+        chip << 0 << 1 << 4 << 5;
+
+    int counter = 0;
+
+    // Read channel information
+    foreach (QString ch, channels)
+    {
+        // Read rows that were defined for processing
+        foreach (QString row, processRows)
+        {            
+            if (row.contains(ch))
+            {
+                generateReport tempReport;
+                tempReport.lane = "Lane" + QString::number(lane);
+                tempReport.channel = ch;
+                tempReport.chip = "chip" + QString::number(chip[counter++]);
+                QString key = tempReport.channel + "_" + tempReport.chip;
+
+                // Test that required ID is found
+                if (row.contains(idOrig))
+                {
+                    tempReport.idStatus     = "Match";
+
+                    // Get factory bad blocks and ECC frames with k bit errors from CSV
+                    if ( !(csvResult.count(key) > 0) )
+                    {
+                        tempReport.factoryBB    = "";
+                        tempReport.ECCBB        = "";
+                    }
+                    else
+                    {
+                        tempReport.factoryBB    = QString::number(csvResult[key][0]);
+                        tempReport.ECCBB        = QString::number(csvResult[key][1]);
+                    }
+
+                    tempReport.eraseBB      = QString::number(erase[key]);
+                    tempReport.programBB    = QString::number(program[key]);
+
+                    tempReport.generalError = QString::number(generalError.size());
+                }
+                else
+                {
+                    tempReport.idStatus     = "Miss";
+                    tempReport.factoryBB    = "";
+                    tempReport.eraseBB      = "";
+                    tempReport.programBB    = "";
+                    tempReport.ECCBB        = "";
+                    tempReport.generalError = "";
+                }
+
+                repList.append(tempReport);
+
+                if (counter == chip.size())
+                    counter = 0;
+            }
+        }
+    }
+
+    // Finalize results
+    outData.preprocessing(repList, repPath, maxBB);
+
+}
+
+void parseResults::analyzeCSV()
+{
+    /*!
+        Makes analysis of CSV to collect information about factory bad blocks and
+        ECC frames with k bit errors
+    */
+
+    qDebug() << "Analysis of CSV in process...";
+
+    // Read input file
+    QFile csvFile(csvPath);
+
+    if(csvFile.open(QIODevice::ReadOnly))
+    {
+        QTextStream csvStream(&csvFile);
+
+        // Read a row from input
+        while(!csvStream.atEnd())
+        {
+            // Read a line
+            QString line = csvStream.readLine();
+
+            // Split line into list
+            QStringList tempList = line.split(" ");
+
+            // Form key as channel address with chip address to collect info about
+            // factory bad block and ECC frame with k-errors
+            QString key = "CH" + tempList[0] + "_" + "chip" + tempList[1];
+
+            // Check that key is not present in QMap
+            if ( !(csvResult.count(key) > 0) )
+            {
+                csvResult[key][0] = 0;
+                csvResult[key][1] = 0;
+            }
+
+            // Collect count of factory bad blocls
+            int factorybad = csvResult[key][0];
+            if (tempList[3] == "1")
+                csvResult[key][0] = ++factorybad;
+
+            // Collect count of ECC block fail
+            int eccblockfail = csvResult[key][1];
+            QString valueECC = tempList[k+6-1]; // Correction -1 because any list starts from 0
+            if (valueECC.toInt() > 0)
+                csvResult[key][1] = ++eccblockfail;
+        }
+    }
+
+    csvFile.close();
 }
 
 void parseResults::getChannels()
@@ -146,5 +352,38 @@ void parseResults::getChannels()
         qDebug() << "No found channels";
         exit(EXIT_FAILURE);
     }
+}
 
+QStringList parseResults::readFile()
+{
+    /*!
+        Converts input file into QStringList for processing
+    */
+
+
+    // Will be returned
+    QStringList convertedData;
+
+    // Read input file
+    QFile rstFile(rstPath);
+
+    if(rstFile.open(QIODevice::ReadOnly))
+    {
+
+        qDebug() << "TEST_ROW_1";
+        QTextStream inStream(&rstFile);
+        qDebug() << "TEST_ROW_2";
+
+        // Read a row from input
+        while(!inStream.atEnd())
+        {
+            convertedData << inStream.readLine();
+        }
+    }
+
+
+    // Close the file after reading
+    rstFile.close();
+
+    return convertedData;
 }
