@@ -11,7 +11,12 @@ int main(int argc, char *argv[])
     */
 
     // Launch process of analysis
-    inputParameters initialParameters;
+    inputParameters i;
+    parseResults *parser = new parseResults(i.pathToReport, i.pathToRST, i.pathToCSV, i.idOriginal, i.srOriginal, i.k, i.maxBB);
 
+    parser->analyzeCSV();    
+    parser->analyzeRST();
+    qDebug() << "Done";
+    delete parser;
     return a.exec();
 }

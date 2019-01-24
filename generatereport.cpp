@@ -13,12 +13,14 @@ void generateReport::createReport(QString reportFilePath, QString strToWrite)
      */
 
     // Define header
-    QString header =  "Lane,CH,Chip,ID Status,FactoryBB,EraseBB,ProgramBB,EccBB,General error,TotalBB,Crystal result,Status\n";
+    QString header =  "Lane;CH;Chip;ID Status;FactoryBB;EraseBB;ProgramBB;EccBB;General error;TotalBB;Crystal result;Status\n";
 
     QFile file(reportFilePath);
 
     // Remove old report if it exists
     file.remove();
+
+    // Write to CS from input
     if(file.open(QIODevice::ReadWrite))
     {
           QTextStream stream(&file);
@@ -34,41 +36,129 @@ void generateReport::createReport(QString reportFilePath, QString strToWrite)
 void generateReport::preprocessing(QList <generateReport> finalResult, QString reportFilePath, int maxBB)
 {
     /*!
-        Makes preprocessing before write CSV report
+        Makes preprocessing before write CSV report and outputs to the console
     */
 
-    generalStatus           = "Good";
-    QString crystalStatus   = "";
+    // Storage for console data
+    QMap <QString, QString> statusReport;    
 
-    // Check general status for a circuit
+    // Storage for CSV data
+    QList <QStringList> writeData;
+
     foreach (generateReport var, finalResult)
     {
-        int errorCounter = var.factoryBB.toInt() + var.eraseBB.toInt() + var.programBB.toInt() + var.ECCBB.toInt() + var.generalError.toInt();
-        if (errorCounter > maxBB || var.idStatus == "Miss")
-            generalStatus = "Bad";
-    }
+        QStringList tempWrite;
+        QString resBB = "";
+        QString generalStatus   = "Good";
+        QString crystalStatus   = "Good";
 
-    // Form data to write
-    QString strToWrite = "";
-    foreach (generateReport var, finalResult)
-    {
-        int totalBB = var.factoryBB.toInt() + var.eraseBB.toInt() + var.programBB.toInt() + var.ECCBB.toInt() + var.generalError.toInt();
+        if (var.idStatus != "Miss")
+        {
+            // Calculate total bad block count
+            int totalBB = var.factoryBB.toInt() + var.eraseBB.toInt() + var.programBB.toInt() + var.ECCBB.toInt() + var.generalError.toInt();
 
-        if (totalBB > maxBB || var.idStatus == "Miss")
-            crystalStatus = "Bad";
+            resBB = QString::number(totalBB);
+
+            // Compare calculated bad block with the template value
+            if (totalBB > maxBB)
+            {
+                crystalStatus   = "Bad";
+                statusReport[var.channel + "_" + var.chip] = "BAD -> Too much bad blocks";
+                generalStatus   = "Bad";
+            }
+            else
+            {
+                statusReport[var.channel + "_" + var.chip] = "Good";
+            }
+
+
+        }
         else
-            crystalStatus = "Good";
-
-        QString resBB = QString::number(totalBB);
-        if (var.idStatus == "Miss")
+        {
+            crystalStatus = "Bad";
             resBB = "";
+            statusReport[var.channel + "_" + var.chip] = "BAD -> Miss ID";
+            generalStatus = "Bad";
 
-        // Form output line
-        strToWrite += var.lane + "," + var.channel + "," + var.chip + "," + var.idStatus + "," + var.factoryBB + "," + var.eraseBB + "," + var.programBB + "," + var.ECCBB + "," + var.generalError + "," + resBB + "," + crystalStatus + "," + generalStatus + "\n";
+        }
+
+        // Collect data as list before writting
+        tempWrite << var.lane << var.channel << var.chip << var.idStatus <<
+                     var.factoryBB << var.eraseBB << var.programBB <<
+                     var.ECCBB << var.generalError << resBB <<
+                     crystalStatus << generalStatus;
+
+
+        writeData.append(tempWrite);
     }
 
+
+    QString strToWrite      = "";
+
+    // Template values of Lane and CH. It needs to exclude duplicates in the csv
+    QString templateLane    = writeData[0][0];
+    QString templateCh      = writeData[0][1];
+    for (int i = 1 ; i < writeData.size(); i++)
+    {
+        // Exclude duplicates for Lanes
+        if (writeData[i][0] == templateLane )
+        {
+            writeData[i][0] = "";
+        }
+        else
+        {
+            templateLane = writeData[i][0];
+        }
+
+        // Exclude duplicates for Channels
+        if (writeData[i][1] == templateCh )
+        {
+            writeData[i][1] = "";
+        }
+        else
+        {
+            templateCh = writeData[i][1];
+        }
+
+        // Exclude duplicates for general status
+        if (writeData[i][1] == "")
+        {
+            writeData[i][11] = "";
+        }
+
+    }
+
+    // Form output string to write
+    for (int i = 0 ; i < writeData.size(); i++)
+    {
+        for (int j = 0 ; j < writeData[i].size(); j++)
+        {
+            strToWrite += writeData[i][j] + ";";
+        }
+        strToWrite += "\n";
+    }
+
+
+    // Collect messages for the console
+    QStringList console;
+    foreach (QString key, statusReport.keys())
+    {
+        if (statusReport[key].contains("Miss ID"))
+        {
+            console << key.mid(0,3) + " " + statusReport[key];
+        }
+        else if (statusReport[key].contains("Too much bad blocks"))
+        {
+            console << key.mid(0,3) + " " + statusReport[key];
+        }
+    }
+
+    // Exclude duplicates from messages for console
+    console.removeDuplicates();
+    for (int i = 0; i < console.size(); i++)
+        qDebug() << console[i];
+
+    // Write csv report
     createReport(reportFilePath, strToWrite);
 
-    // Out to the console
-    qDebug() << "Conclusion is " + generalStatus;
 }

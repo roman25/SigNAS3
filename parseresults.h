@@ -32,7 +32,6 @@ public:
     quint8 laneCount;
     int countCrystal;
 
-
     QStringList channels;
     QStringList generalError;
     QStringList rawRST;
@@ -44,13 +43,13 @@ public:
     QList <generateReport> repList;
     QMap <QString, QMap <QString, QStringList> > testIdOriginal;
     generateReport outData;
-
-
-private:
     QString repPath, rstPath, csvPath, idOrig, srOrig;
     int k, maxBB;
 
     QMap <QString, QList <int> > csvResult;
+
+
+
 };
 
 #endif // PARSERESULTS_H

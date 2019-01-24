@@ -4,14 +4,14 @@ parseResults::parseResults(QString pathToReport, QString pathToRST, QString path
 repPath(pathToReport), rstPath(pathToRST), csvPath(pathToCSV), idOrig(idOriginal), srOrig (srOriginal), k(k), maxBB(maxBB)
 {
     laneCount = 0;
-    //analyzeCSV();
-    analyzeRST();
 }
 
 void parseResults::analyzeRST()
 {
+
     // Get input data in required format for processing
     rawRST = readFile();
+
 
     // Get information about channels for prcessing
     getChannels();
@@ -62,8 +62,6 @@ void parseResults::analyzeSr(QStringList rawRST)
     /*!
         Makes analysis of SR values
      */
-
-    qDebug() << "Analysis of SR original in process...";
 
     // Storage for Erase/Program/Read Fail errors
     QStringList otherErrors;
@@ -193,7 +191,6 @@ void parseResults::analyzeId(int lane, QStringList rawRST)
         Makes analysis of input ID_original value in .rst file
      */
 
-    qDebug() << "Analysis of ID in process...";
 
     // Define list that will be processed
     QStringList processRows;
@@ -272,6 +269,7 @@ void parseResults::analyzeId(int lane, QStringList rawRST)
         }
     }
 
+
     // Finalize results
     outData.preprocessing(repList, repPath, maxBB);
 
@@ -284,14 +282,13 @@ void parseResults::analyzeCSV()
         ECC frames with k bit errors
     */
 
-    qDebug() << "Analysis of CSV in process...";
-
     // Read input file
     QFile csvFile(csvPath);
+    QTextStream csvStream(&csvFile);
 
     if(csvFile.open(QIODevice::ReadOnly))
     {
-        QTextStream csvStream(&csvFile);
+
 
         // Read a row from input
         while(!csvStream.atEnd())
@@ -309,8 +306,10 @@ void parseResults::analyzeCSV()
             // Check that key is not present in QMap
             if ( !(csvResult.count(key) > 0) )
             {
-                csvResult[key][0] = 0;
-                csvResult[key][1] = 0;
+                QList <int> tList;
+                tList << 0 << 0;
+                csvResult[key] = tList;
+                //csvResult[key].append(0);
             }
 
             // Collect count of factory bad blocls
@@ -325,6 +324,7 @@ void parseResults::analyzeCSV()
                 csvResult[key][1] = ++eccblockfail;
         }
     }
+
 
     csvFile.close();
 }
@@ -367,20 +367,21 @@ QStringList parseResults::readFile()
     // Read input file
     QFile rstFile(rstPath);
 
-    if(rstFile.open(QIODevice::ReadOnly))
+    QTextStream inStream(&rstFile);
+
+    if( !rstFile.open( QIODevice::ReadOnly | QIODevice::Text  ) )
     {
-
-        qDebug() << "TEST_ROW_1";
-        QTextStream inStream(&rstFile);
-        qDebug() << "TEST_ROW_2";
-
+        qDebug() << "Can not open file " + rstPath;
+    }
+    else
+    {
         // Read a row from input
         while(!inStream.atEnd())
         {
-            convertedData << inStream.readLine();
+            QString row = inStream.readLine();
+            convertedData << row;
         }
     }
-
 
     // Close the file after reading
     rstFile.close();
