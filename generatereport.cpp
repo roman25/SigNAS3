@@ -95,11 +95,15 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
 
     QString strToWrite      = "";
 
-    // Template values of Lane and CH. It needs to exclude duplicates in the csv
+    // Initial template values of Lane and CH. It needs to exclude duplicates in the csv
     QString templateLane    = writeData[0][0];
     QString templateCh      = writeData[0][1];
+
+    int chRowNumber = 0;
+
     for (int i = 1 ; i < writeData.size(); i++)
     {
+
         // Exclude duplicates for Lanes
         if (writeData[i][0] == templateLane )
         {
@@ -124,6 +128,16 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
         if (writeData[i][1] == "")
         {
             writeData[i][11] = "";
+        }       
+        else
+        {
+            chRowNumber = i;
+        }
+
+        // Set status for curren CH
+        if (writeData[i][10] == "Bad")
+        {
+            writeData[chRowNumber][11] = "Bad";
         }
 
     }
