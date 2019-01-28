@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
 
     parser->analyzeCSV();
     parser->analyzeRST();
+
     delete parser;
-    return a.exec();
+    return 0;
 }
