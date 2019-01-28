@@ -70,8 +70,6 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
             {
                 statusReport[var.channel + "_" + var.chip] = "Good";
             }
-
-
         }
         else
         {
@@ -134,7 +132,7 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
             chRowNumber = i;
         }
 
-        // Set status for curren CH
+        // Set status for current CH
         if (writeData[i][10] == "Bad")
         {
             writeData[chRowNumber][11] = "Bad";
@@ -152,7 +150,6 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
         strToWrite += "\n";
     }
 
-
     // Collect messages for the console
     QStringList console;
     foreach (QString key, statusReport.keys())
@@ -167,10 +164,19 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
         }
     }
 
+    // Form output console message
+    for (int i = 0 ; i < writeData.size(); i++)
+    {
+        if ( (writeData[i][1] != "") && (writeData[i][11] == "Good") )
+            console << writeData[i][1] + " -> " + writeData[i][11];
+    }
+
     // Exclude duplicates from messages for console
     console.removeDuplicates();
     for (int i = 0; i < console.size(); i++)
+    {
         qDebug() << console[i];
+    }
 
     // Write csv report
     createReport(reportFilePath, strToWrite);
