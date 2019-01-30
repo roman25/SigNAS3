@@ -3,83 +3,71 @@
 parseResults::parseResults(QString pathToReport, QString pathToRST, QString pathToCSV, QString idOriginal, QString srOriginal, int k, int maxBB):
 repPath(pathToReport), rstPath(pathToRST), csvPath(pathToCSV), idOrig(idOriginal), srOrig (srOriginal), k(k), maxBB(maxBB)
 {
-    laneCount = 0;
+
 }
 
 void parseResults::analyzeRST()
 {
 
-    // Get input data in required format for processing
-    rawRST = readFile();
+    // Storage for Erase/Program/Read Fail errors
+    QStringList otherErrors;
+    QStringList generalError;
 
+    // Define list that will be processed
+    QStringList processRows;
 
-    // Get information about channels for prcessing
-    getChannels();
+    // Read input file
+    QFile rstFile(rstPath);
+    int lane;
+    int countCrystal = 0;
 
-    // Store information about Lanes as row number
-    QList <int> laneLineNumber;
-    for (int i = 0; i < rawRST.size(); i++)
+    QTextStream inStream(&rstFile);
+
+    if(rstFile.open(QIODevice::ReadOnly | QIODevice::Text) )
     {
-        // Read row
-        QString line = rawRST[i];
+        // Read a row from input
+        while(!inStream.atEnd())
+        {
+            QString row = inStream.readLine();
 
-        // Check the required row contains the template word
-        if (line.contains("Lane"))
-            laneLineNumber.push_back(i);
-    }
+            // Check the required row contains the template word
+            if (row.contains("Lane"))
+            {
+                lane = row.split(" : ")[1].toInt();
+            }
 
-    // Verification of lanes
-    if (laneLineNumber.size() == 0)
-    {
-        qDebug() << "No Lane port";
-        exit(EXIT_FAILURE);
+            // Extract info about available channels
+            if (row.contains("Channel :"))
+            {
+                channels = row.split(" ");
+                channels = channels.mid(2);
+            }
+
+            if (row.startsWith("Get Data (") )
+            {
+                processRows.push_back(row);
+                if (row.contains(channels[0]) )
+                    countCrystal++;
+            }
+
+
+            if (   (row.contains("Erase")||
+                    row.contains("Read") ||
+                    row.contains("Program"))
+                && ( !(row.contains("Status") || (row.contains("Enable")) ) ) )
+               generalError << row;
+
+            if (   (row.contains("Erase")||
+                    row.contains("Read") ||
+                    row.contains("Program"))
+                && (row.contains("Status") ) )
+                otherErrors << row;
+        }
+
     }
     else
     {
-        // Split input .rst data by lane count
-        for (int laneNum = 0; laneNum < laneLineNumber.size(); laneNum++)
-        {
-
-            // Split by parts for every Lane
-            int lowBorder = laneLineNumber[laneNum]; // Low border for splitting
-            int upBorder = laneLineNumber[laneNum]; // Up border of splitting
-            if (laneLineNumber.size() > 1)
-                upBorder = laneLineNumber.value(laneNum+1);
-
-            results.clear();
-            chip.clear();
-
-            // Get splitted data for processing
-            QStringList dataForAnalysis = rawRST.mid(lowBorder, upBorder - lowBorder -1);
-            analyzeSr(dataForAnalysis);
-            analyzeId(laneNum, dataForAnalysis);
-        }
-    }
-}
-
-void parseResults::analyzeSr(QStringList rawRST)
-{
-    /*!
-        Makes analysis of SR values
-     */
-
-    // Storage for Erase/Program/Read Fail errors
-    QStringList otherErrors;
-
-    // Read raw RST data
-    foreach (QString line, rawRST)
-    {
-        if (   (line.contains("Erase")||
-                line.contains("Read") ||
-                line.contains("Program"))
-            && (!(line.contains("Status") || (line.contains("Enable"))  ) ) )
-           generalError << line;
-
-        if (   (line.contains("Erase")||
-                line.contains("Read") ||
-                line.contains("Program"))
-            && (line.contains("Status") ) )
-            otherErrors << line;
+        qDebug() << "Can not open file " + rstPath;
     }
 
     // Analyze errors and count
@@ -182,30 +170,7 @@ void parseResults::analyzeSr(QStringList rawRST)
             }
         }
     }
-}
 
-
-void parseResults::analyzeId(int lane, QStringList rawRST)
-{
-    /*!
-        Makes analysis of input ID_original value in .rst file
-     */
-
-
-    // Define list that will be processed
-    QStringList processRows;
-
-    // Collect rows that contain ID data
-    countCrystal = 0;
-    foreach (QString row, rawRST)
-    {
-        if (row.startsWith("Get Data (") )
-        {
-            processRows.push_back(row);
-            if (row.contains(channels[0]) )
-                countCrystal++;
-        }
-    }
 
     // Define values of chips
     if (countCrystal == 2)
@@ -220,7 +185,7 @@ void parseResults::analyzeId(int lane, QStringList rawRST)
     {
         // Read rows that were defined for processing
         foreach (QString row, processRows)
-        {            
+        {
             if (row.contains(ch))
             {
                 generateReport tempReport;
@@ -325,66 +290,5 @@ void parseResults::analyzeCSV()
         }
     }
 
-
     csvFile.close();
-}
-
-void parseResults::getChannels()
-{
-    /*!
-        Gets information about used channels
-    */
-
-    // Read rows in list
-    foreach (QString row, rawRST)
-    {
-        if (row.contains("Channel :"))
-        {
-            // Extract info about available channels
-            channels = row.split(" ");
-            channels = channels.mid(2);
-        }
-    }
-
-    // Data verification
-    if (channels.size() == 0)
-    {
-        qDebug() << "No found channels";
-        exit(EXIT_FAILURE);
-    }
-}
-
-QStringList parseResults::readFile()
-{
-    /*!
-        Converts input file into QStringList for processing
-    */
-
-
-    // Will be returned
-    QStringList convertedData;
-
-    // Read input file
-    QFile rstFile(rstPath);
-
-    QTextStream inStream(&rstFile);
-
-    if( !rstFile.open( QIODevice::ReadOnly | QIODevice::Text  ) )
-    {
-        qDebug() << "Can not open file " + rstPath;
-    }
-    else
-    {
-        // Read a row from input
-        while(!inStream.atEnd())
-        {
-            QString row = inStream.readLine();
-            convertedData << row;
-        }
-    }
-
-    // Close the file after reading
-    rstFile.close();
-
-    return convertedData;
 }
