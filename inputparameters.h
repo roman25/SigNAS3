@@ -3,7 +3,6 @@
 
 #include <QString>
 #include <QDebug>
-#include "parseresults.h"
 
 class inputParameters
 {
@@ -17,9 +16,6 @@ public:
     QString srOriginal;
     int k;
     int maxBB;
-
-
-
 };
 
 #endif // INPUTPARAMETERS_H

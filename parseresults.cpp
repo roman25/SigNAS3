@@ -1,26 +1,29 @@
 #include "parseresults.h"
 
-parseResults::parseResults(QString pathToReport, QString pathToRST, QString pathToCSV, QString idOriginal, QString srOriginal, int k, int maxBB):
-repPath(pathToReport), rstPath(pathToRST), csvPath(pathToCSV), idOrig(idOriginal), srOrig (srOriginal), k(k), maxBB(maxBB)
+parseResults::parseResults(inputParameters inParams)
 {
+    repPath = inParams.pathToReport;
+    rstPath = inParams.pathToRST;
+    csvPath = inParams.pathToCSV;
+    idOrig  = inParams.idOriginal;
+    srOrig  = inParams.srOriginal;
+    k       = inParams.k;
+    maxBB   = inParams.maxBB;
 
 }
+
 
 void parseResults::analyzeRST()
 {
 
-    // Storage for Erase/Program/Read Fail errors
-    QStringList otherErrors;
-    QStringList generalError;
-
     // Define list that will be processed
     QStringList processRows;
 
+    int generalError    = 0;
+    int lane            = 0;
+
     // Read input file
     QFile rstFile(rstPath);
-    int lane;
-    int countCrystal = 0;
-
     QTextStream inStream(&rstFile);
 
     if(rstFile.open(QIODevice::ReadOnly | QIODevice::Text) )
@@ -46,137 +49,26 @@ void parseResults::analyzeRST()
             if (row.startsWith("Get Data (") )
             {
                 processRows.push_back(row);
-                if (row.contains(channels[0]) )
-                    countCrystal++;
             }
 
-
+            // Get count of general errors
             if (   (row.contains("Erase")||
                     row.contains("Read") ||
                     row.contains("Program"))
                 && ( !(row.contains("Status") || (row.contains("Enable")) ) ) )
-               generalError << row;
+               generalError++;
 
             if (   (row.contains("Erase")||
                     row.contains("Read") ||
                     row.contains("Program"))
                 && (row.contains("Status") ) )
-                otherErrors << row;
+                analyzeErrorType(row);
         }
-
     }
     else
     {
         qDebug() << "Can not open file " + rstPath;
     }
-
-    // Analyze errors and count
-    foreach (QString line, otherErrors)
-    {
-        if (line.contains("Erase") )
-        {
-            // Split data
-            QStringList splitedStatus = line.split("Status ");
-            QStringList splitedCH = splitedStatus[1].split(",");
-
-            foreach (QString chInfo, splitedCH)
-            {
-                // Get CH value
-                QString ch = chInfo.mid(0,3);
-                QStringList srList = chInfo.mid(3).split(" ");
-
-                // Define values of chips
-                if (srList.size() == 2)
-                    chip << 0 << 4;
-                else
-                    chip << 0 << 1 << 4 << 5;
-
-                for (int i = 0; i < srList.size(); i++)
-                {
-                    QString key = ch + "_" + "chip" +QString::number(chip[i]);
-
-                    // Check that key is not present in QMap
-                    if ( !(erase.count(key) > 0) )
-                        erase[key] = 0;
-
-                    // Collect count of erase fail errors
-                    int eraseBad = erase[key];
-                    if (!(srList[i].contains(srOrig)))
-                        erase[key] = ++eraseBad;
-                }
-            }
-        }
-        else if (line.contains("Read") )
-        {
-            QStringList splitedStatus = line.split("Status ");
-            QStringList splitedCH = splitedStatus[1].split(",");
-
-            foreach (QString chInfo, splitedCH)
-            {
-                QString ch = chInfo.mid(0,3);
-                QStringList srList = chInfo.mid(3).split(" ");
-
-                // Define values of chips
-                if (srList.size() == 2)
-                    chip << 0 << 4;
-                else
-                    chip << 0 << 1 << 4 << 5;
-
-                for (int i = 0; i < srList.size(); i++)
-                {
-                    QString key = ch + "_" + "chip" +QString::number( chip[i]);
-
-                    // Check that key is not present in QMap
-                    if ( !(read.count(key) > 0) )
-                        read[key] = 0;
-
-                    // Collect count of read fail errors
-                    int readBad = read[key];
-                    if (!(srList[i].contains(srOrig)))
-                        read[key] = ++readBad;
-                }
-            }
-        }
-
-        else if (line.contains("Program") )
-        {
-            QStringList splitedStatus = line.split("Status ");
-            QStringList splitedCH = splitedStatus[1].split(",");
-
-            foreach (QString chInfo, splitedCH)
-            {
-                QString ch = chInfo.mid(0,3);
-                QStringList srList = chInfo.mid(3).split(" ");
-
-                // Define values of chips
-                if (srList.size() == 2)
-                    chip << 0 << 4;
-                else
-                    chip << 0 << 1 << 4 << 5;
-
-                for (int i = 0; i < srList.size(); i++)
-                {
-                    QString key = ch + "_" + "chip" +QString::number( chip[i]);
-
-                    // Check that key is not present in QMap
-                    if ( !(program.count(key) > 0) )
-                        program[key] = 0;
-
-                    // Collect count of program fail errors
-                    int programBad = program[key];
-                    if (!(srList[i].contains(srOrig)))
-                        program[key] = ++programBad;
-                }
-            }
-        }
-    }
-
-
-    // Define values of chips
-    if (countCrystal == 2)
-        chip << 0 << 4;
-    else
-        chip << 0 << 1 << 4 << 5;
 
     int counter = 0;
 
@@ -214,7 +106,7 @@ void parseResults::analyzeRST()
                     tempReport.eraseBB      = QString::number(erase[key]);
                     tempReport.programBB    = QString::number(program[key]);
 
-                    tempReport.generalError = QString::number(generalError.size());
+                    tempReport.generalError = QString::number(generalError);
                 }
                 else
                 {
@@ -240,6 +132,115 @@ void parseResults::analyzeRST()
 
 }
 
+void parseResults::analyzeErrorType(QString line)
+{
+
+    /*!
+        Collects statistic about errors in a .rst file
+    */
+
+    // Check "Erase" errors
+    if (line.contains("Erase") )
+    {
+        // Split data
+        QStringList splitedStatus = line.split("Status ");
+        QStringList splitedCH = splitedStatus[1].split(",");
+
+        foreach (QString chInfo, splitedCH)
+        {
+            // Get CH value
+            QString ch = chInfo.mid(0,3);
+            QStringList srList = chInfo.mid(3).split(" ");
+
+            // Define values of chips
+            if (srList.size() == 2)
+                chip << 0 << 4;
+            else
+                chip << 0 << 1 << 4 << 5;
+
+            for (int i = 0; i < srList.size(); i++)
+            {
+                QString key = ch + "_" + "chip" +QString::number(chip[i]);
+
+                // Check that key is not present in QMap
+                if ( !(erase.count(key) > 0) )
+                    erase[key] = 0;
+
+                // Collect count of erase fail errors
+                int eraseBad = erase[key];
+                if (!(srList[i].contains(srOrig)))
+                    erase[key] = ++eraseBad;
+            }
+        }
+    }
+
+    // Check "Read" errors
+    else if (line.contains("Read") )
+    {
+        QStringList splitedStatus = line.split("Status ");
+        QStringList splitedCH = splitedStatus[1].split(",");
+
+        foreach (QString chInfo, splitedCH)
+        {
+            QString ch = chInfo.mid(0,3);
+            QStringList srList = chInfo.mid(3).split(" ");
+
+            // Define values of chips
+            if (srList.size() == 2)
+                chip << 0 << 4;
+            else
+                chip << 0 << 1 << 4 << 5;
+
+            for (int i = 0; i < srList.size(); i++)
+            {
+                QString key = ch + "_" + "chip" +QString::number( chip[i]);
+
+                // Check that key is not present in QMap
+                if ( !(read.count(key) > 0) )
+                    read[key] = 0;
+
+                // Collect count of read fail errors
+                int readBad = read[key];
+                if (!(srList[i].contains(srOrig)))
+                    read[key] = ++readBad;
+            }
+        }
+    }
+
+    // Check "Program" errors
+    else if (line.contains("Program") )
+    {
+        QStringList splitedStatus = line.split("Status ");
+        QStringList splitedCH = splitedStatus[1].split(",");
+
+        foreach (QString chInfo, splitedCH)
+        {
+            QString ch = chInfo.mid(0,3);
+            QStringList srList = chInfo.mid(3).split(" ");
+
+            // Define values of chips
+            if (srList.size() == 2)
+                chip << 0 << 4;
+            else
+                chip << 0 << 1 << 4 << 5;
+
+            for (int i = 0; i < srList.size(); i++)
+            {
+                QString key = ch + "_" + "chip" +QString::number( chip[i]);
+
+                // Check that key is not present in QMap
+                if ( !(program.count(key) > 0) )
+                    program[key] = 0;
+
+                // Collect count of program fail errors
+                int programBad = program[key];
+                if (!(srList[i].contains(srOrig)))
+                    program[key] = ++programBad;
+            }
+        }
+    }
+}
+
 void parseResults::analyzeCSV()
 {
     /*!
@@ -253,7 +254,6 @@ void parseResults::analyzeCSV()
 
     if(csvFile.open(QIODevice::ReadOnly))
     {
-
 
         // Read a row from input
         while(!csvStream.atEnd())

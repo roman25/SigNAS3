@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include "inputparameters.h"
+#include "parseresults.h"
 #include <QTime>
 #include <QDate>
 
@@ -30,8 +31,7 @@ int main(int argc, char *argv[])
         i.maxBB = QString(argv[4]).toInt(&ok);
     }
 
-    parseResults *parser = new parseResults(i.pathToReport, i.pathToRST, i.pathToCSV, i.idOriginal, i.srOriginal, i.k, i.maxBB);
-
+    parseResults *parser = new parseResults(i);
     parser->analyzeCSV();
     parser->analyzeRST();
 

@@ -8,24 +8,20 @@
 #include <QStringList>
 #include <QTextStream>
 
+#include "inputparameters.h"
 #include "generatereport.h"
 
 class parseResults
 {
 public:   
-    parseResults(QString pathToReport,
-                 QString pathToRST,
-                 QString pathToCSV,
-                 QString idOriginal,
-                 QString srOriginal,
-                 int k,
-                 int maxBB);
+    parseResults(inputParameters i);
 
     QString repPath, rstPath, csvPath, idOrig, srOrig;
     int k, maxBB;
 
     void analyzeCSV();
     void analyzeRST();
+    void analyzeErrorType(QString line);
 
     QStringList channels;
     QList <int> chip;
