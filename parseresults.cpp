@@ -26,6 +26,8 @@ void parseResults::analyzeRST()
     QFile rstFile(rstPath);
     QTextStream inStream(&rstFile);
 
+    QMap <QString, int> uniqueChannels;
+
     if(rstFile.open(QIODevice::ReadOnly | QIODevice::Text) )
     {
         // Read a row from input
@@ -45,9 +47,27 @@ void parseResults::analyzeRST()
                 channels = row.split(" ");
                 channels = channels.mid(2);
             }
-
+            
             if (row.startsWith("Get Data (") )
             {
+                QStringList splitForChannel = row.split(" ");
+                QString channel = splitForChannel[3];
+
+                if (uniqueChannels.contains(channel))
+                {
+                    uniqueChannels[channel] += 1;
+                }
+                else
+                {
+                    uniqueChannels[channel] = 1;
+                }
+
+                int templateChip = uniqueChannels[channel];
+                if (templateChip == 2)
+                    chip << 0 << 4;
+                else if (templateChip > 2)
+                    chip << 0 << 1 << 4 << 5;
+
                 processRows.push_back(row);
             }
 
@@ -58,17 +78,21 @@ void parseResults::analyzeRST()
                 && ( !(row.contains("Status") || (row.contains("Enable")) ) ) )
                generalError++;
 
-            if (   (row.contains("Erase")||
-                    row.contains("Read") ||
-                    row.contains("Program"))
-                && (row.contains("Status") ) )
+            if ((row.contains("Erase") ||
+                 row.contains("Read") ||
+                 row.contains("Program"))
+             && (row.contains("Status")))
+            {
                 analyzeErrorType(row);
+            }
         }
     }
     else
     {
         qDebug() << "Can not open file " + rstPath;
     }
+
+    // Define values of chips
 
     int counter = 0;
 
@@ -153,12 +177,6 @@ void parseResults::analyzeErrorType(QString line)
             QString ch = chInfo.mid(0,3);
             QStringList srList = chInfo.mid(3).split(" ");
 
-            // Define values of chips
-            if (srList.size() == 2)
-                chip << 0 << 4;
-            else
-                chip << 0 << 1 << 4 << 5;
-
             for (int i = 0; i < srList.size(); i++)
             {
                 QString key = ch + "_" + "chip" +QString::number(chip[i]);
@@ -186,12 +204,6 @@ void parseResults::analyzeErrorType(QString line)
             QString ch = chInfo.mid(0,3);
             QStringList srList = chInfo.mid(3).split(" ");
 
-            // Define values of chips
-            if (srList.size() == 2)
-                chip << 0 << 4;
-            else
-                chip << 0 << 1 << 4 << 5;
-
             for (int i = 0; i < srList.size(); i++)
             {
                 QString key = ch + "_" + "chip" +QString::number( chip[i]);
@@ -218,14 +230,6 @@ void parseResults::analyzeErrorType(QString line)
         {
             QString ch = chInfo.mid(0,3);
             QStringList srList = chInfo.mid(3).split(" ");
-
-
-            // Define values of chips
-            if (srList.size() == 2)
-                chip << 0 << 4;
-            else
-                chip << 0 << 1 << 4 << 5;
-
 
             for (int i = 0; i < srList.size(); i++)
             {
