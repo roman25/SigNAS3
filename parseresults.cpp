@@ -78,7 +78,9 @@ void parseResults::analyzeRST()
         // Read rows that were defined for processing
         foreach (QString row, processRows)
         {
-            if (row.contains(ch))
+            QStringList splitForChannel = row.split(" ");
+
+            if (ch == splitForChannel[3])
             {
                 generateReport tempReport;
                 tempReport.lane = "Lane" + QString::number(lane);
@@ -125,7 +127,6 @@ void parseResults::analyzeRST()
             }
         }
     }
-
 
     // Finalize results
     outData.preprocessing(repList, repPath, maxBB);
@@ -218,11 +219,13 @@ void parseResults::analyzeErrorType(QString line)
             QString ch = chInfo.mid(0,3);
             QStringList srList = chInfo.mid(3).split(" ");
 
+
             // Define values of chips
             if (srList.size() == 2)
                 chip << 0 << 4;
             else
                 chip << 0 << 1 << 4 << 5;
+
 
             for (int i = 0; i < srList.size(); i++)
             {

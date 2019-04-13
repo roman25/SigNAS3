@@ -152,15 +152,21 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
 
     // Collect messages for the console
     QStringList console;
+
     foreach (QString key, statusReport.keys())
     {
+        // Take slice of the string to get channel number
+        int i = 3;
+        if (key[3].isDigit())
+            i = 4;
+
         if (statusReport[key].contains("Miss ID"))
         {
-            console << key.mid(0,3) + " " + statusReport[key];
+            console << key.mid(0,i) + " " + statusReport[key];
         }
         else if (statusReport[key].contains("Too much bad blocks"))
         {
-            console << key.mid(0,3) + " " + statusReport[key];
+            console << key.mid(0,i) + " " + statusReport[key];
         }
     }
 
