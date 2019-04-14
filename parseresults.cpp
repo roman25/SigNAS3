@@ -173,8 +173,13 @@ void parseResults::analyzeErrorType(QString line)
 
         foreach (QString chInfo, splitedCH)
         {
+            // Take slice of the string to get channel number
+            int position = 3;
+            if (chInfo[3].isDigit())
+                position = 4;
+
             // Get CH value
-            QString ch = chInfo.mid(0,3);
+            QString ch = chInfo.mid(0, position);
             QStringList srList = chInfo.mid(3).split(" ");
 
             for (int i = 0; i < srList.size(); i++)
@@ -201,7 +206,12 @@ void parseResults::analyzeErrorType(QString line)
 
         foreach (QString chInfo, splitedCH)
         {
-            QString ch = chInfo.mid(0,3);
+            // Take slice of the string to get channel number
+            int position = 3;
+            if (chInfo[3].isDigit())
+                position = 4;
+
+            QString ch = chInfo.mid(0, position);
             QStringList srList = chInfo.mid(3).split(" ");
 
             for (int i = 0; i < srList.size(); i++)
@@ -228,7 +238,11 @@ void parseResults::analyzeErrorType(QString line)
 
         foreach (QString chInfo, splitedCH)
         {
-            QString ch = chInfo.mid(0,3);
+            // Take slice of the string to get channel number
+            int position = 3;
+            if (chInfo[3].isDigit())
+                position = 4;
+            QString ch = chInfo.mid(0, position);
             QStringList srList = chInfo.mid(3).split(" ");
 
             for (int i = 0; i < srList.size(); i++)
