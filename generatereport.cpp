@@ -179,6 +179,35 @@ void generateReport::preprocessing(QList <generateReport> finalResult, QString r
 
     // Exclude duplicates from messages for console
     console.removeDuplicates();
+    console.sort();
+
+    // Remove two error for one channel
+    bool skipError = true;
+    if (skipError)
+    {
+        for (int i = 1; i < console.size(); i++)
+        {
+            // Take slice of the string to get channel number
+            int slice = 3;
+            if (console[i][3].isDigit())
+                slice = 4;
+            QString chCurrent   = console[i].mid(0, slice);
+            QString chPrevious  = console[i-1].mid(0, slice);
+            
+            if (chCurrent == chPrevious)
+            {
+                if (console[i].contains("Too much bad blocks") )
+                {
+                    console.removeAt(i);
+                }
+                else if (console[i-1].contains("Too much bad blocks"))
+                {
+                    console.removeAt(i-1);
+                }
+            }
+        }
+    }
+
     for (int i = 0; i < console.size(); i++)
     {
         qDebug() << console[i];
