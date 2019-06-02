@@ -305,9 +305,13 @@ void parseResults::analyzeCSV()
 
             // Collect count of ECC block fail
             int eccblockfail = csvResult[key][1];
-            QString valueECC = tempList[k+6-1]; // Correction -1 because any list starts from 0
-            if (valueECC.toInt() > 0)
-                csvResult[key][1] = ++eccblockfail;
+
+            for (int i = k + 7 - 1; i < tempList.size(); i++)
+            {
+                QString valueECC = tempList[i];
+                if (valueECC.toInt() > 0)
+                    csvResult[key][1] = ++eccblockfail;
+            }
         }
     }
 
