@@ -7,7 +7,8 @@ parseResults::parseResults(inputParameters inParams)
     csvPath = inParams.pathToCSV;
     idOrig  = inParams.idOriginal;
     srOrig  = inParams.srOriginal;
-    k       = inParams.k;
+    k0      = inParams.k0;
+    kn      = inParams.kn;
     maxBB   = inParams.maxBB;
 
 }
@@ -305,13 +306,20 @@ void parseResults::analyzeCSV()
 
             // Collect count of ECC block fail
             int eccblockfail = csvResult[key][1];
+            int sum          = 0;
 
-            for (int i = k + 7 - 1; i < tempList.size(); i++)
+
+            if ((kn + 5) > 259)
+                kn = 254;
+
+            for (int i = k0 + 5; i <= kn + 5; i++)
             {
                 QString valueECC = tempList[i];
-                if (valueECC.toInt() > 0)
-                    csvResult[key][1] = ++eccblockfail;
+                sum += valueECC.toInt();
             }
+
+            if (sum > 0)
+                csvResult[key][1] = ++eccblockfail;
         }
     }
 

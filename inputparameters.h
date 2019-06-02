@@ -14,7 +14,8 @@ public:
     QString pathToCSV;
     QString idOriginal;
     QString srOriginal;
-    int k;
+    int k0;
+    int kn;
     int maxBB;
 };
 

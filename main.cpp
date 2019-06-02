@@ -4,6 +4,12 @@
 #include <QTime>
 #include <QDate>
 
+#include <QMap>
+#include <QString>
+#include <QRandomGenerator>
+#include <QDebug>
+#include <QFile>
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -23,23 +29,25 @@ int main(int argc, char *argv[])
     i.pathToRST = "./script0.rst";
     i.pathToCSV = "./res.csv";
 
-    if (argc >= 7) {
+    if (argc >= 8)
+    {
         i.pathToRST = QString(argv[1]);
         i.pathToCSV = QString(argv[2]);
         i.pathToReport = QString(argv[3]);
         i.idOriginal = QString(argv[4]);
         i.srOriginal = QString(argv[5]);
         bool ok;
-        i.k = QString(argv[6]).toInt(&ok);
+        i.k0 = QString(argv[6]).toInt(&ok);
+        i.kn = QString(argv[7]).toInt(&ok);
         i.maxBB = QString(argv[7]).toInt(&ok);
     }
     else {
-        qInfo() << "Enter all 7 parameters: pathtoRST, pathtoCSV, pathtoReport, idOriginl, srOriginal, k, maxBB";
+        qInfo() << "Enter all 8 parameters: pathtoRST, pathtoCSV, pathtoReport, idOriginl, srOriginal, k0, kn, maxBB";
         return -1;
     }
 
     parseResults *parser = new parseResults(i);
-
+    
     parser->analyzeCSV();
     parser->analyzeRST();
 

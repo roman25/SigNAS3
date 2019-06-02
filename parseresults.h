@@ -17,7 +17,7 @@ public:
     parseResults(inputParameters i);
 
     QString repPath, rstPath, csvPath, idOrig, srOrig;
-    int k, maxBB;
+    int k0, kn, maxBB;
 
     void analyzeCSV();
     void analyzeRST();
