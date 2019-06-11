@@ -91,6 +91,7 @@ void parseResults::analyzeRST()
     else
     {
         qDebug() << "Can not open file " + rstPath;
+        return;
     }
 
     // Define values of chips
@@ -313,15 +314,22 @@ void parseResults::analyzeCSV()
                 kn = 254;
 
             for (int i = k0 + 5; i <= kn + 5; i++)
-            {
+            {                
                 QString valueECC = tempList[i];
                 sum += valueECC.toInt();
             }
 
             if (sum > 0)
+            {
                 csvResult[key][1] = ++eccblockfail;
+            }
         }
+        csvFile.close();
     }
-
-    csvFile.close();
+    else
+    {
+        qDebug() << "Can not open file " + csvPath;
+        return;
+    }
+    
 }

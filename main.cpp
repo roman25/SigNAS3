@@ -39,12 +39,28 @@ int main(int argc, char *argv[])
         bool ok;
         i.k0 = QString(argv[6]).toInt(&ok);
         i.kn = QString(argv[7]).toInt(&ok);
-        i.maxBB = QString(argv[7]).toInt(&ok);
+        i.maxBB = QString(argv[8]).toInt(&ok);
     }
     else {
         qInfo() << "Enter all 8 parameters: pathtoRST, pathtoCSV, pathtoReport, idOriginl, srOriginal, k0, kn, maxBB";
         return -1;
     }
+
+    QFile rstFile(i.pathToRST);
+    QFile csvFile(i.pathToCSV);
+
+    if ( (!rstFile.exists() ) )
+    {
+        qDebug() << "It not exists " + QString(argv[1]);
+        return -1;
+    }
+
+    if (!(csvFile.exists()))
+    {
+        qDebug() << "It not exists " + QString(argv[2]);
+        return -1;
+    }
+
 
     parseResults *parser = new parseResults(i);
     
